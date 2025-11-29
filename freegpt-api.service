@@ -1,0 +1,29 @@
+[Unit]
+Description=FreeGPT OpenAI-Compatible API Server
+After=network.target
+
+[Service]
+Type=simple
+User=h.azaddel@asax.local
+Group=domain users@asax.local
+WorkingDirectory=/home/h.azaddel@asax.local/code/asax/freegpt
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Load environment variables from .env file
+EnvironmentFile=-/home/h.azaddel@asax.local/code/asax/freegpt/.env
+
+# Start the API server
+ExecStart=/usr/bin/python3 -m uvicorn api:app --host 0.0.0.0 --port 8000
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=freegpt-api
+
+[Install]
+WantedBy=multi-user.target

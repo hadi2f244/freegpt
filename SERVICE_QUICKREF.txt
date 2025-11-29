@@ -1,0 +1,52 @@
+╔══════════════════════════════════════════════════════════════╗
+║           FreeGPT API - Quick Service Reference             ║
+╚══════════════════════════════════════════════════════════════╝
+
+📦 SERVICE INSTALLED & RUNNING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Service: freegpt-api.service
+✅ Auto-start: ENABLED (starts on boot)
+✅ Status: ACTIVE
+✅ API URL: http://localhost:8000
+
+🎮 COMMON COMMANDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+sudo systemctl status freegpt-api    # Check status
+sudo systemctl start freegpt-api     # Start service
+sudo systemctl stop freegpt-api      # Stop service
+sudo systemctl restart freegpt-api   # Restart service
+sudo journalctl -u freegpt-api -f    # View live logs
+
+🔧 CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Service file: /etc/systemd/system/freegpt-api.service
+Working dir:  /home/h.azaddel@asax.local/code/asax/freegpt
+Environment:  .env file in working directory
+
+🔑 TOKEN MANAGEMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python token_manager.py create <name>    # Create token
+python token_manager.py list             # List tokens
+python token_manager.py revoke <prefix>  # Revoke token
+
+🧪 TESTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+python test_openai_sdk.py               # Full test suite
+./test_request.sh                        # Quick curl test
+
+📝 LOGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+sudo journalctl -u freegpt-api -n 50     # Last 50 lines
+sudo journalctl -u freegpt-api -f        # Follow live
+sudo journalctl -u freegpt-api --since today  # Today's logs
+
+📚 MORE INFO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cat SERVICE_GUIDE.md    # Full service documentation
+cat TOKEN_GUIDE.md      # Token management guide
+cat README.md           # API usage guide
+
+╔══════════════════════════════════════════════════════════════╗
+║  Your FreeGPT API is now running as a system service! 🎉   ║
+║  It will automatically start on every system boot.          ║
+╚══════════════════════════════════════════════════════════════╝
