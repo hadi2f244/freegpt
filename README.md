@@ -1,337 +1,194 @@
-# FreeGPT
+# FreeGPT API
 
-Free access to GPT-4, using only a Github Copilot subscription.
-
-Now with an **OpenAI-compatible API server** for seamless integration with any service that uses the OpenAI API!
+OpenAI-compatible API server powered by GitHub Copilot. Drop-in replacement for OpenAI API endpoints.
 
 ## Features
 
-- 🔓 Free GPT-4 access via GitHub Copilot
-- 🌐 OpenAI-compatible REST API
-- 🔄 Streaming and non-streaming support
-- 🔐 Optional API key authentication
-- 🧪 Full test suite
-- 💬 Both CLI and API server modes
+- 🌐 **OpenAI-compatible** - Works with any OpenAI SDK/client
+- 🔄 **Streaming & Non-streaming** - Full SSE support
+- 🔐 **Token Management** - Built-in authentication system
+- 🚀 **Systemd Service** - Auto-start on boot
+- 📝 **Full Test Suite** - Validated compatibility
 
 ## Quick Start
 
-### Installation
+### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### CLI Usage (Original)
-
-Interactive chat interface:
+### 2. Create API Token
 
 ```bash
-python3 chat.py
+python token_manager.py create my-app
 ```
 
-### API Server Usage
+Save the generated token (starts with `sk-`).
 
-Start the OpenAI-compatible API server:
+### 3. Configure Environment
 
 ```bash
-python3 api.py
+cp .env.example .env
+# Edit .env and add your token:
+# FREEGPT_API_KEY=sk-your-token-here
 ```
 
-Or with uvicorn:
+### 4. Start Server
 
+**Manual:**
 ```bash
-uvicorn api:app --host 0.0.0.0 --port 8000
+python -m uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 
-The server will start on `http://localhost:8000` by default.
+**As System Service:**
+```bash
+sudo ./install_service.sh
+```
 
-## API Documentation
+Server runs at `http://localhost:8000`
+
+## API Usage
 
 ### Authentication
 
-Set an API key for secure access (optional):
+Include your token in the Authorization header:
 
 ```bash
-export FREEGPT_API_KEY="your-secret-key"
-# OR
-export OPENAI_API_KEY="your-secret-key"
+Authorization: Bearer sk-your-token-here
 ```
 
-If no key is set, authentication is disabled and all requests are allowed.
+### Endpoints
 
-### Available Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/chat/completions` | POST | Chat with streaming/non-streaming |
+| `/v1/completions` | POST | Text completions |
+| `/v1/models` | GET | List available models |
+| `/v1/models/{id}` | GET | Get model details |
+| `/health` | GET | Health check |
 
-- `POST /v1/chat/completions` - Chat completions (streaming & non-streaming)
-- `POST /v1/completions` - Text completions
-- `GET /v1/models` - List available models
-- `GET /v1/models/{model}` - Get specific model info
-- `POST /v1/moderations` - Content moderation (stub)
-- `GET /health` - Health check
+### Models
 
-### Available Models
+- `gpt-4` / `gpt-4.1` / `freegpt-4`
+- `gpt-3.5-turbo` / `freegpt-3.5`
 
-- `freegpt-4` - GPT-4 (default)
-- `freegpt-3.5` - GPT-3.5 Turbo
-- `gpt-4` - Alias for freegpt-4
-- `gpt-3.5-turbo` - Alias for freegpt-3.5
-
-### Examples
-
-#### Non-Streaming Chat Completion
+### Example: Chat Completion
 
 ```bash
-curl http://localhost:8000/v1/chat/completions \
+curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
+  -H "Authorization: Bearer sk-your-token" \
   -d '{
-    "model": "freegpt-4",
-    "messages": [
-      {
-        "role": "system",
-        "content": "You are a helpful assistant."
-      },
-      {
-        "role": "user",
-        "content": "Write a haiku about programming"
-      }
-    ],
-    "temperature": 0.7,
-    "max_tokens": 150
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```
 
-Response:
-
-```json
-{
-  "id": "chatcmpl-abc123",
-  "object": "chat.completion",
-  "created": 1699564800,
-  "model": "freegpt-4",
-  "usage": {
-    "prompt_tokens": 25,
-    "completion_tokens": 35,
-    "total_tokens": 60
-  },
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Code flows like water\nBugs emerge, then disappear\nPeace in the debugger"
-      },
-      "finish_reason": "stop"
-    }
-  ]
-}
-```
-
-#### Streaming Chat Completion
+### Example: Streaming
 
 ```bash
-curl http://localhost:8000/v1/chat/completions \
+curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
+  -H "Authorization: Bearer sk-your-token" \
   -d '{
-    "model": "freegpt-4",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Count from 1 to 5"
-      }
-    ],
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Count to 5"}],
     "stream": true
   }'
 ```
 
-Response (Server-Sent Events):
-
-```
-data: {"id":"chatcmpl-xyz789","object":"chat.completion.chunk","created":1699564800,"model":"freegpt-4","choices":[{"index":0,"delta":{"content":"1"},"finish_reason":null}]}
-
-data: {"id":"chatcmpl-xyz789","object":"chat.completion.chunk","created":1699564800,"model":"freegpt-4","choices":[{"index":0,"delta":{"content":","},"finish_reason":null}]}
-
-data: {"id":"chatcmpl-xyz789","object":"chat.completion.chunk","created":1699564800,"model":"freegpt-4","choices":[{"index":0,"delta":{"content":" 2"},"finish_reason":null}]}
-
-...
-
-data: [DONE]
-```
-
-#### Text Completion
-
-```bash
-curl http://localhost:8000/v1/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "model": "freegpt-4",
-    "prompt": "Once upon a time",
-    "max_tokens": 50,
-    "temperature": 0.8
-  }'
-```
-
-#### List Models
-
-```bash
-curl http://localhost:8000/v1/models \
-  -H "Authorization: Bearer your-api-key"
-```
-
-Response:
-
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "freegpt-4",
-      "object": "model",
-      "created": 1686935002,
-      "owned_by": "freegpt"
-    },
-    {
-      "id": "freegpt-3.5",
-      "object": "model",
-      "created": 1686935002,
-      "owned_by": "freegpt"
-    }
-  ]
-}
-```
-
-## Using with OpenAI SDK
-
-The API is fully compatible with the OpenAI Python SDK:
+## OpenAI SDK Integration
 
 ```python
 from openai import OpenAI
 
-# Point to your local FreeGPT server
 client = OpenAI(
     base_url="http://localhost:8000/v1",
-    api_key="your-api-key"  # Optional if FREEGPT_API_KEY not set
+    api_key="sk-your-token"
 )
 
-# Use just like the official OpenAI API
 response = client.chat.completions.create(
-    model="freegpt-4",
-    messages=[
-        {"role": "user", "content": "Hello, how are you?"}
-    ]
+    model="gpt-4",
+    messages=[{"role": "user", "content": "Hello!"}]
 )
 
 print(response.choices[0].message.content)
-
-# Streaming example
-stream = client.chat.completions.create(
-    model="freegpt-4",
-    messages=[{"role": "user", "content": "Tell me a story"}],
-    stream=True
-)
-
-for chunk in stream:
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="")
 ```
 
-## Configuration
-
-### Environment Variables
-
-- `FREEGPT_API_KEY` or `OPENAI_API_KEY` - API key for authentication (optional)
-- `PORT` - Server port (default: 8000)
-- `HOST` - Server host (default: 0.0.0.0)
-
-### Example with Custom Port
+## Token Management
 
 ```bash
-PORT=3000 python3 api.py
+# Create new token
+python token_manager.py create my-app
+
+# List all tokens
+python token_manager.py list
+
+# Revoke token
+python token_manager.py revoke sk-abc123
+
+# Delete token
+python token_manager.py delete sk-abc123
+```
+
+## Systemd Service
+
+Install as a system service (auto-starts on boot):
+
+```bash
+sudo ./install_service.sh
+```
+
+### Service Commands
+
+```bash
+sudo systemctl status freegpt-api    # Check status
+sudo systemctl restart freegpt-api   # Restart
+sudo systemctl stop freegpt-api      # Stop
+sudo journalctl -u freegpt-api -f    # View logs
+```
+
+Uninstall:
+
+```bash
+sudo ./uninstall_service.sh
 ```
 
 ## Testing
 
-Run the test suite:
-
 ```bash
+# Run full test suite
+python test_openai_sdk.py
+
+# Or use pytest
 pytest tests/test_api.py -v
 ```
 
-Run with coverage:
+## Configuration Files
 
-```bash
-pytest tests/test_api.py -v --cov=api --cov-report=html
-```
+- `.env` - Environment variables (API keys)
+- `api_tokens.json` - Token database (auto-generated)
+- `freegpt-api.service` - Systemd service template
 
-## Architecture
+## Documentation
 
-```
-┌─────────────┐
-│   Client    │ (OpenAI SDK, curl, etc.)
-└──────┬──────┘
-       │ HTTP/JSON
-       ▼
-┌─────────────────┐
-│   api.py        │ (FastAPI server)
-│   - /v1/chat/   │
-│   - /v1/models  │
-│   - Auth        │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   chat.py       │ (Core logic)
-│   - GitHub      │
-│     Copilot API │
-│   - Token mgmt  │
-└─────────────────┘
-```
-
-## Drop-in Replacement
-
-This server can be used as a drop-in replacement for OpenAI's API in any application:
-
-1. Start the FreeGPT API server
-2. Update your application's `base_url` to point to `http://localhost:8000/v1`
-3. Use your preferred model names (`freegpt-4`, `freegpt-3.5`)
-4. Everything else works the same!
-
-## License
-
-This project is for educational purposes. Please respect GitHub's terms of service.
+- `TOKEN_GUIDE.md` - Complete token management guide
+- `SERVICE_GUIDE.md` - Systemd service documentation
+- `QUICKSTART_TOKENS.md` - Quick token reference
 
 ## Troubleshooting
 
-### Authentication Issues
+**Authentication errors:**
+- Ensure token is set: `python token_manager.py list`
+- Check `.env` file has correct token
 
-If you see authentication errors with GitHub Copilot:
+**Port in use:**
+- Change port in service file or use: `PORT=8001 uvicorn api:app`
 
-1. Delete `.copilot_token` file
-2. Run `python3 chat.py` to re-authenticate
-3. Follow the device code flow
-4. Restart the API server
+**Module not found:**
+- Install dependencies: `pip install -r requirements.txt`
 
-### Module Not Found
+## License
 
-Ensure all dependencies are installed:
-
-```bash
-pip install -r requirements.txt
-```
-
-### Port Already in Use
-
-Change the port:
-
-```bash
-PORT=8001 python3 api.py
-```
-
-## Contributing
-
-Contributions welcome! Please ensure tests pass before submitting PRs.
-
-```bash
-pytest tests/test_api.py -v
-```
+Educational purposes only. Respect GitHub's terms of service.

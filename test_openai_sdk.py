@@ -8,11 +8,16 @@ import os
 from openai import OpenAI
 
 # Configure the client to point to your local FreeGPT API
-# Use a token from: python token_manager.py list
-API_TOKEN = os.getenv(
-    "FREEGPT_API_KEY",
-    "sk-0aa7049f203581e0ed07c51943d692e155256f6f166f37420dc2ad34ed3bcbed",
-)
+# Get API token from environment variable or create one with: python token_manager.py create
+API_TOKEN = os.getenv("FREEGPT_API_KEY")
+
+if not API_TOKEN:
+    print("❌ Error: FREEGPT_API_KEY environment variable not set")
+    print("\nPlease either:")
+    print("  1. Set environment variable: export FREEGPT_API_KEY=your-token")
+    print("  2. Add to .env file: FREEGPT_API_KEY=your-token")
+    print("  3. Create a token: python token_manager.py create test")
+    exit(1)
 
 client = OpenAI(api_key=API_TOKEN, base_url="http://localhost:8000/v1")
 

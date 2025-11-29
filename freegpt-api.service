@@ -4,14 +4,14 @@ After=network.target
 
 [Service]
 Type=simple
-User=h.azaddel@asax.local
-Group=domain users@asax.local
-WorkingDirectory=/home/h.azaddel@asax.local/code/asax/freegpt
+User=YOUR_USERNAME
+Group=YOUR_GROUP
+WorkingDirectory=/path/to/freegpt
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 
 # Load environment variables from .env file
-EnvironmentFile=-/home/h.azaddel@asax.local/code/asax/freegpt/.env
+EnvironmentFile=-/path/to/freegpt/.env
 
 # Start the API server
 ExecStart=/usr/bin/python3 -m uvicorn api:app --host 0.0.0.0 --port 8000

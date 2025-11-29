@@ -17,19 +17,55 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Get the actual user (not root)
+# Get the actual user (not root) and their primary group
 ACTUAL_USER="${SUDO_USER:-$USER}"
-SERVICE_DIR="/home/h.azaddel@asax.local/code/asax/freegpt"
+ACTUAL_GROUP=$(id -gn "$ACTUAL_USER")
+SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Installing FreeGPT API service..."
 echo "Service directory: $SERVICE_DIR"
 echo "User: $ACTUAL_USER"
+echo "Group: $ACTUAL_GROUP"
 echo ""
 
-# Copy service file to systemd
-echo "1. Copying service file to /etc/systemd/system/..."
-cp "$SERVICE_DIR/freegpt-api.service" /etc/systemd/system/
+# Create service file with actual user/group/path
+echo "1. Creating service file with your configuration..."
+cat > /tmp/freegpt-api.service << EOF
+[Unit]
+Description=FreeGPT OpenAI-Compatible API Server
+After=network.target
+
+[Service]
+Type=simple
+User=$ACTUAL_USER
+Group=$ACTUAL_GROUP
+WorkingDirectory=$SERVICE_DIR
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Load environment variables from .env file
+EnvironmentFile=-$SERVICE_DIR/.env
+
+# Start the API server
+ExecStart=/usr/bin/python3 -m uvicorn api:app --host 0.0.0.0 --port 8000
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=freegpt-api
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Copy to systemd
+cp /tmp/freegpt-api.service /etc/systemd/system/
 chmod 644 /etc/systemd/system/freegpt-api.service
+rm /tmp/freegpt-api.service
 
 # Reload systemd daemon
 echo "2. Reloading systemd daemon..."
