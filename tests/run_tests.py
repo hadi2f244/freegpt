@@ -212,6 +212,17 @@ def run_curl_test(token):
         if response.status_code == 200:
             data = response.json()
             content = data["choices"][0]["message"]["content"]
+
+            # Check if response contains error message
+            if content and (
+                "Error:" in content
+                or "HTTPSConnectionPool" in content
+                or "ProxyError" in content
+                or "Connection refused" in content
+            ):
+                print(f"❌ API Response contains error: {content[:200]}")
+                return False
+
             print(f"✅ API Response: {content}")
             return True
         else:

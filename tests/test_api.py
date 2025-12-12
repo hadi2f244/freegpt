@@ -26,19 +26,20 @@ def auth_token():
     token = os.getenv("FREEGPT_API_KEY") or os.getenv("OPENAI_API_KEY")
     if token:
         return token
-    
+
     # Try to load from api_tokens.json
     try:
         import json
+
         parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         token_file = os.path.join(parent_dir, "api_tokens.json")
-        with open(token_file, 'r') as f:
+        with open(token_file, "r") as f:
             tokens = json.load(f)
             if tokens:
                 return list(tokens.keys())[0]
     except:
         pass
-    
+
     return None
 
 
@@ -110,7 +111,9 @@ def test_unauthorized_request(client, mock_env_with_auth):
     assert response.status_code == 401
     response_data = response.json()
     # Check for error in either top level or detail (API returns nested structure)
-    assert "error" in response_data or ("detail" in response_data and "error" in response_data["detail"])
+    assert "error" in response_data or (
+        "detail" in response_data and "error" in response_data["detail"]
+    )
 
 
 # Model Endpoints Tests
@@ -296,7 +299,9 @@ def test_completions_streaming(mock_stream, client, auth_headers):
 def test_moderations(client, auth_headers):
     """Test POST /v1/moderations endpoint."""
     response = client.post(
-        "/v1/moderations", headers=auth_headers, json={"input": "I want to test this text"}
+        "/v1/moderations",
+        headers=auth_headers,
+        json={"input": "I want to test this text"},
     )
 
     assert response.status_code == 200
@@ -316,7 +321,9 @@ def test_moderations(client, auth_headers):
 def test_moderations_multiple_inputs(client, auth_headers):
     """Test moderations with multiple inputs."""
     response = client.post(
-        "/v1/moderations", headers=auth_headers, json={"input": ["Text 1", "Text 2", "Text 3"]}
+        "/v1/moderations",
+        headers=auth_headers,
+        json={"input": ["Text 1", "Text 2", "Text 3"]},
     )
 
     assert response.status_code == 200

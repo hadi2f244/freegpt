@@ -42,7 +42,19 @@ def test_chat_completion():
     print(f"\nModel: {response.model}")
     print(f"Response ID: {response.id}")
     print(f"Created: {response.created}")
-    print(f"\nAssistant: {response.choices[0].message.content}")
+    print(f"\nA: {response.choices[0].message.content}")
+
+    # Check if response contains error message
+    content = response.choices[0].message.content
+    if content and (
+        "Error:" in content
+        or "HTTPSConnectionPool" in content
+        or "ProxyError" in content
+        or "Connection refused" in content
+    ):
+        print("\n❌ API call failed with error response!")
+        raise Exception(f"API returned error: {content[:200]}")
+
     print(f"\nUsage:")
     print(f"  Prompt tokens: {response.usage.prompt_tokens}")
     print(f"  Completion tokens: {response.usage.completion_tokens}")
@@ -77,6 +89,17 @@ def test_streaming_chat():
             full_response += content
 
     print("\n")
+
+    # Check if response contains error message
+    if full_response and (
+        "Error:" in full_response
+        or "HTTPSConnectionPool" in full_response
+        or "ProxyError" in full_response
+        or "Connection refused" in full_response
+    ):
+        print("\n❌ Streaming API call failed with error response!")
+        raise Exception(f"API returned error: {full_response[:200]}")
+
     return full_response
 
 
@@ -100,7 +123,18 @@ def test_multiple_messages():
         model="gpt-4.1", messages=messages, max_tokens=50
     )
 
-    print(f"\nAssistant: {response.choices[0].message.content}")
+    content = response.choices[0].message.content
+    print(f"\nA: {content}")
+
+    # Check if response contains error message
+    if content and (
+        "Error:" in content
+        or "HTTPSConnectionPool" in content
+        or "ProxyError" in content
+        or "Connection refused" in content
+    ):
+        print("\n❌ Multi-turn conversation failed with error response!")
+        raise Exception(f"API returned error: {content[:200]}")
 
     return response
 

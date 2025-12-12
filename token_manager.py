@@ -31,7 +31,7 @@ def _save_tokens(tokens: Dict[str, dict]):
             json.dump(tokens, f, indent=2)
     except (OSError, IOError):
         # Handle read-only file systems (e.g., in Docker containers during testing)
-        # This is acceptable as the token validation still works from the existing data  
+        # This is acceptable as the token validation still works from the existing data
         pass
 
 
