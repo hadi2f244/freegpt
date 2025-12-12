@@ -10,7 +10,8 @@ import os
 
 # Get API token from environment variable
 API_TOKEN = os.getenv("FREEGPT_API_KEY")
-API_BASE = "http://localhost:8000/v1"
+BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+API_BASE = f"{BASE_URL}/v1"
 
 if not API_TOKEN:
     print("❌ Error: FREEGPT_API_KEY environment variable not set")

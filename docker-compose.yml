@@ -1,0 +1,85 @@
+# FreeGPT API Server - Docker Compose Configuration
+#
+# Usage:
+#   Start server:     docker-compose up -d
+#   Stop server:      docker-compose down
+#   View logs:        docker-compose logs -f
+#   Run tests:        docker-compose run --rm test
+#   Initial setup:    docker-compose run --rm freegpt-api python chat.py
+#
+# For first-time setup, you need to authenticate with GitHub Copilot:
+#   docker-compose run --rm freegpt-api python chat.py
+# This will guide you through the OAuth device flow.
+
+services:
+  freegpt-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freegpt-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - FREEGPT_API_KEY=${FREEGPT_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+      # Proxy settings (required for accessing GitHub Copilot API in some networks)
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - http_proxy=${HTTP_PROXY:-}
+      - https_proxy=${HTTPS_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+      - no_proxy=${NO_PROXY:-localhost,127.0.0.1}
+    volumes:
+      # Persistent data - GitHub Copilot token and API tokens
+      - ./.copilot_token:/app/.copilot_token:rw
+      - ./api_tokens.json:/app/api_tokens.json:rw
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - freegpt-network
+
+  # Test service - runs all tests against the API
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freegpt-test
+    environment:
+      - HOST=freegpt-api
+      - PORT=${PORT:-8000}
+      - FREEGPT_API_KEY=${FREEGPT_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+      - TEST_BASE_URL=http://freegpt-api:${PORT:-8000}
+      # Proxy settings
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - http_proxy=${HTTP_PROXY:-}
+      - https_proxy=${HTTPS_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1,freegpt-api}
+      - no_proxy=${NO_PROXY:-localhost,127.0.0.1,freegpt-api}
+    volumes:
+      # Mount test files
+      - ./tests:/app/tests:ro
+      - ./.copilot_token:/app/.copilot_token:ro
+      - ./api_tokens.json:/app/api_tokens.json:ro
+    depends_on:
+      freegpt-api:
+        condition: service_healthy
+    command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    networks:
+      - freegpt-network
+    profiles:
+      - test
+
+networks:
+  freegpt-network:
+    driver: bridge

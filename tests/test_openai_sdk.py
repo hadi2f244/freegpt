@@ -10,6 +10,7 @@ from openai import OpenAI
 # Configure the client to point to your local FreeGPT API
 # Get API token from environment variable or create one with: python token_manager.py create
 API_TOKEN = os.getenv("FREEGPT_API_KEY")
+BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")
 
 if not API_TOKEN:
     print("❌ Error: FREEGPT_API_KEY environment variable not set")
@@ -19,7 +20,7 @@ if not API_TOKEN:
     print("  3. Create a token: python token_manager.py create test")
     exit(1)
 
-client = OpenAI(api_key=API_TOKEN, base_url="http://localhost:8000/v1")
+client = OpenAI(api_key=API_TOKEN, base_url=f"{BASE_URL}/v1")
 
 
 def test_chat_completion():
@@ -149,9 +150,7 @@ def test_error_handling():
 
     # Test with invalid API key
     print("\nTesting with invalid API key...")
-    invalid_client = OpenAI(
-        api_key="sk-invalid-key", base_url="http://localhost:8000/v1"
-    )
+    invalid_client = OpenAI(api_key="sk-invalid-key", base_url=f"{BASE_URL}/v1")
 
     try:
         invalid_client.chat.completions.create(

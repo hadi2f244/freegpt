@@ -4,15 +4,75 @@ OpenAI-compatible API server powered by GitHub Copilot. Drop-in replacement for 
 
 ## Quick Start
 
-### 1. Install Dependencies
+### Docker Setup (Recommended)
+
+#### 1. Install and Start
+
+```bash
+./install_service.sh
+```
+
+This will:
+- Check Docker prerequisites
+- Build the Docker image
+- Start the container
+- Run health checks
+
+#### 2. GitHub Copilot Authentication (First Time Only)
+
+```bash
+docker compose run --rm freegpt-api python chat.py
+```
+
+- Follow the prompts to authenticate
+- Visit the provided URL and enter the code
+- After success, the token is saved automatically
+
+#### 3. Configure Proxy (If Required)
+
+If you need a proxy to access GitHub Copilot API:
+
+```bash
+# Edit .env file
+nano .env
+
+# Add proxy settings:
+HTTP_PROXY=http://your-proxy-host:port
+HTTPS_PROXY=http://your-proxy-host:port
+```
+
+Then restart:
+
+```bash
+docker compose restart
+```
+
+#### 4. Create API Token
+
+```bash
+docker compose exec freegpt-api python token_manager.py create my-app
+# Save the generated token (starts with sk-)
+```
+
+#### 5. Test
+
+```bash
+./run_tests.sh
+```
+
+**Server runs at:** `http://localhost:8000`
+
+---
+
+### Local/Manual Setup
+
+#### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. GitHub Copilot Authentication (First Time Only)
-
-**Required:** Authenticate with GitHub Copilot before starting the API server.
+#### 2. GitHub Copilot Authentication (First Time Only)
 
 ```bash
 python chat.py
@@ -24,38 +84,68 @@ python chat.py
 
 This creates `.copilot_token` file needed for API access.
 
-### 3. Create API Token
+#### 3. Configure Proxy (If Required)
+
+```bash
+# Set proxy environment variables
+export HTTP_PROXY=http://your-proxy-host:port
+export HTTPS_PROXY=http://your-proxy-host:port
+```
+
+#### 4. Create API Token
 
 ```bash
 python token_manager.py create my-app
 # Save the generated token (starts with sk-)
 ```
 
-### 4. Configure Environment
+#### 5. Configure Environment
 
 ```bash
 cp .env.example .env
 nano .env  # Add your token: FREEGPT_API_KEY=sk-your-token
 ```
 
-### 5. Start Server
+#### 6. Start Server
 
 ```bash
 ./start_server.sh
 ```
 
-Or install as system service (auto-starts on boot):
+#### 7. Test
 
 ```bash
-sudo ./install_service.sh
+./run_tests.sh --local
 ```
 
 **Server runs at:** `http://localhost:8000`
 
-### 6. Test
+---
+
+## Docker Commands
 
 ```bash
-./run_tests.sh
+# Start/Stop
+docker compose up -d              # Start in background
+docker compose down               # Stop and remove containers
+docker compose restart            # Restart containers
+
+# Logs and Status
+docker compose logs -f            # View live logs
+docker compose ps                 # Check container status
+
+# Execute Commands
+docker compose exec freegpt-api python token_manager.py list
+docker compose exec freegpt-api python chat.py
+
+# Testing
+./run_tests.sh                    # Run tests in Docker (default)
+./run_tests.sh --local            # Run tests locally against Docker
+
+# Cleanup
+./uninstall_service.sh            # Remove containers
+./uninstall_service.sh --images   # Also remove images
+./uninstall_service.sh --all      # Remove everything
 ```
 
 ## Usage
@@ -91,7 +181,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 # Verification
 ./verify_setup.sh                    # Check setup status
 
-# Token Management  
+# Token Management
 python token_manager.py list         # List all tokens
 python token_manager.py create name  # Create new token
 python token_manager.py revoke sk-   # Revoke token
