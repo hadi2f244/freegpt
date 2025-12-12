@@ -1,15 +1,15 @@
 # FreeGPT API Server - Docker Compose Configuration
 #
 # Usage:
+#   First-time auth:  docker-compose run --rm auth
 #   Start server:     docker-compose up -d
 #   Stop server:      docker-compose down
 #   View logs:        docker-compose logs -f
 #   Run tests:        docker-compose run --rm test
-#   Initial setup:    docker-compose run --rm freegpt-api python chat.py
 #
-# For first-time setup, you need to authenticate with GitHub Copilot:
-#   docker-compose run --rm freegpt-api python chat.py
-# This will guide you through the OAuth device flow.
+# IMPORTANT: Before starting the server, you MUST authenticate:
+#   docker-compose run --rm auth
+# This will guide you through the GitHub Copilot OAuth device flow.
 
 services:
   freegpt-api:
@@ -35,7 +35,8 @@ services:
       - no_proxy=${NO_PROXY:-localhost,127.0.0.1}
     volumes:
       # Persistent data - GitHub Copilot token and API tokens
-      - ./.copilot_token:/app/.copilot_token:rw
+      # Note: .copilot_token must exist and contain valid token before starting
+      - ./data:/app/data:rw
       - ./api_tokens.json:/app/api_tokens.json:rw
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/health')"]
@@ -45,6 +46,29 @@ services:
       start_period: 10s
     networks:
       - freegpt-network
+
+  # Authentication service - run this first to set up GitHub Copilot token
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freegpt-auth
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Proxy settings (required for accessing GitHub Copilot API in some networks)
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - http_proxy=${HTTP_PROXY:-}
+      - https_proxy=${HTTPS_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-localhost,127.0.0.1}
+      - no_proxy=${NO_PROXY:-localhost,127.0.0.1}
+    volumes:
+      - ./data:/app/data:rw
+    command: ["python", "chat.py"]
+    networks:
+      - freegpt-network
+    profiles:
+      - auth
 
   # Test service - runs all tests against the API
   test:
@@ -69,7 +93,7 @@ services:
     volumes:
       # Mount test files
       - ./tests:/app/tests:ro
-      - ./.copilot_token:/app/.copilot_token:ro
+      - ./data:/app/data:ro
       - ./api_tokens.json:/app/api_tokens.json:ro
     depends_on:
       freegpt-api:

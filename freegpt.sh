@@ -58,7 +58,8 @@ load_env() {
 }
 
 prepare_files() {
-    [ ! -f ".copilot_token" ] && touch .copilot_token
+    mkdir -p data
+    [ ! -f "data/.copilot_token" ] && touch data/.copilot_token
     [ ! -f "api_tokens.json" ] && echo "{}" > api_tokens.json
     if [ ! -f ".env" ] && [ -f ".env.example" ]; then
         cp .env.example .env
@@ -175,7 +176,7 @@ cmd_clean() {
         echo -e "   ${YELLOW}⚠️  This will delete your authentication tokens!${NC}"
         read -p "   Are you sure? (y/N): " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            rm -f .copilot_token api_tokens.json
+            rm -rf data/.copilot_token api_tokens.json
             echo "   Data files removed"
         fi
     fi
@@ -268,10 +269,10 @@ cmd_auth() {
     echo ""
 
     # Check if token already exists
-    if [ -f ".copilot_token" ] && [ -s ".copilot_token" ]; then
+    if [ -f "data/.copilot_token" ] && [ -s "data/.copilot_token" ]; then
         echo -e "${GREEN}✅ Existing token found${NC}"
         echo "   This will start a chat session using your existing token"
-        echo "   To re-authenticate, delete .copilot_token first"
+        echo "   To re-authenticate, delete data/.copilot_token first"
         echo ""
     else
         echo "No existing token found - will start OAuth authentication"
@@ -295,7 +296,7 @@ cmd_auth() {
     $COMPOSE_CMD run --rm freegpt-api python chat.py
 
     echo ""
-    if [ -s ".copilot_token" ]; then
+    if [ -s "data/.copilot_token" ]; then
         echo -e "${GREEN}✅ Token file exists${NC}"
         echo "   You can now start the API server: $0 start -d"
     else

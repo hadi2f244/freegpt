@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import os
 from typing import List, Dict, Tuple, Generator, Optional
 
 
@@ -10,6 +11,10 @@ MODEL = "gpt-4.1"
 MODELS = {
     "gpt-4.1": "gpt-4.1",
 }
+
+# Token file location
+DATA_DIR = "data"
+TOKEN_FILE = os.path.join(DATA_DIR, ".copilot_token")
 
 token = None
 
@@ -63,23 +68,35 @@ def setup():
         if access_token:
             break
 
+    # Ensure data directory exists
+    os.makedirs(DATA_DIR, exist_ok=True)
+
     # Save the access token to a file
-    with open(".copilot_token", "w") as f:
+    with open(TOKEN_FILE, "w") as f:
         f.write(access_token)
 
-    print("Authentication success!")
+    print(f"✓ Authentication success! Token saved to {TOKEN_FILE}")
 
 
 def get_token():
     global token
-    # Check if the .copilot_token file exists
+    # Check if the token file exists
     while True:
         try:
-            with open(".copilot_token", "r") as f:
-                access_token = f.read()
+            with open(TOKEN_FILE, "r") as f:
+                access_token = f.read().strip()
+                if not access_token:
+                    print(f"\n⚠️  Token file {TOKEN_FILE} is empty")
+                    print("Removing and re-authenticating...\n")
+                    os.remove(TOKEN_FILE)
+                    setup()
+                    continue
                 break
         except FileNotFoundError:
+            print(f"\n⚠️  Token file not found: {TOKEN_FILE}")
+            print("Starting authentication...\n")
             setup()
+
     # Get a session with the access token
     resp = requests.get(
         "https://api.github.com/copilot_internal/v2/token",
@@ -91,9 +108,24 @@ def get_token():
         },
     )
 
+    if resp.status_code != 200:
+        print(f"\n⚠️  Error getting Copilot token: {resp.status_code}")
+        print(f"Response: {resp.text}")
+        print("\nYour access token may be invalid or expired.")
+        print("Removing old token and re-authenticating...\n")
+        if os.path.exists(TOKEN_FILE):
+            os.remove(TOKEN_FILE)
+        setup()
+        return get_token()
+
     # Parse the response json, isolating the token
     resp_json = resp.json()
     token = resp_json.get("token")
+
+    if not token:
+        print("\n⚠️  Failed to get Copilot token from response")
+        print(f"Response: {resp_json}")
+        raise Exception("Failed to obtain Copilot token")
 
 
 def chat(message):
@@ -121,7 +153,8 @@ def chat(message):
                 "messages": messages,
             },
         )
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        print(f"\n⚠️  Connection error: {e}")
         return ""
 
     result = ""
@@ -147,8 +180,11 @@ def chat(message):
     messages.append({"content": result, "role": "assistant"})
 
     if result == "":
-        print(resp.status_code)
-        print(resp.text)
+        print(f"\n⚠️  Error {resp.status_code}: {resp.text}")
+        if resp.status_code == 400 or resp.status_code == 401:
+            print(
+                f"\nYour token may be invalid. Try deleting {TOKEN_FILE} and re-authenticating."
+            )
     return result
 
 
@@ -313,9 +349,21 @@ def stream_chat_response(
 
 
 def main():
+    print("=" * 60)
+    print("FreeGPT Chat Interface")
+    print("GitHub: https://github.com/hadi2f244/freegpt")
+    print("=" * 60)
+    print("\nAuthenticating with GitHub Copilot...")
     get_token()
+    print("✓ Authentication successful!")
+    print("\nYou can now start chatting. Type your message and press Enter.")
+    print("(Press Ctrl+C to exit)\n")
     while True:
-        print(chat(input(">>> ")))
+        try:
+            print(chat(input(">>> ")))
+        except KeyboardInterrupt:
+            print("\n\nGoodbye!")
+            break
 
 
 if __name__ == "__main__":

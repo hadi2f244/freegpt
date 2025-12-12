@@ -1,3 +1,5 @@
+# Data directory - contains tokens and persistent data
+data/
 .copilot_token
 
 # API tokens - keep secure!
