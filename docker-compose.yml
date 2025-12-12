@@ -74,7 +74,7 @@ services:
     depends_on:
       freegpt-api:
         condition: service_healthy
-    command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    command: ["sh", "-c", "cd /app && find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true && python -B -m pytest tests/ -v --tb=short"]
     networks:
       - freegpt-network
     profiles:
