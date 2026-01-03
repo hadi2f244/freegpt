@@ -131,6 +131,22 @@ class ModerationRequest(BaseModel):
     )
 
 
+class ResponsesRequest(BaseModel):
+    """Request model for /v1/responses endpoint (Agent compatibility)."""
+
+    messages: List[Message] = Field(
+        ..., description="List of messages in the conversation"
+    )
+    model: Optional[str] = Field("gpt-4.1", description="Model to use for completion")
+    temperature: Optional[float] = Field(
+        1.0, ge=0, le=2, description="Sampling temperature"
+    )
+    max_tokens: Optional[int] = Field(
+        512, ge=1, description="Maximum tokens to generate"
+    )
+    stream: Optional[bool] = Field(False, description="Whether to stream the response")
+
+
 # API Endpoints
 
 
@@ -146,6 +162,7 @@ async def root():
             "/v1/models",
             "/v1/models/{model}",
             "/v1/moderations",
+            "/v1/responses",
         ],
     }
 
@@ -470,6 +487,108 @@ async def moderations(
         )
 
     return {"id": request_id, "model": req.model, "results": results}
+
+
+@app.post("/v1/responses")
+async def responses(req: ResponsesRequest, authorization: Optional[str] = Header(None)):
+    """
+    Create a response (Agent-compatible endpoint).
+
+    This endpoint provides compatibility with GitHub Copilot Agent and similar tools.
+    Functionally similar to chat completions but with Agent-specific format.
+    """
+    # Check authentication
+    if not check_auth(authorization):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=create_error_response(
+                "Invalid API key provided", error_type="authentication_error"
+            ),
+        )
+
+    # Generate unique request ID
+    request_id = "resp-" + uuid.uuid4().hex[:24]
+    created_at = int(time.time())
+
+    # Convert messages to dict format
+    messages_dict = [{"role": m.role, "content": m.content} for m in req.messages]
+
+    # Handle non-streaming response
+    if not req.stream:
+        try:
+            text, usage = generate_chat_response(
+                messages_dict,
+                model=req.model,
+                temperature=req.temperature,
+                max_tokens=req.max_tokens,
+            )
+
+            return {
+                "id": request_id,
+                "object": "response",
+                "created": created_at,
+                "model": req.model,
+                "usage": usage,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": text},
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=create_error_response(
+                    f"Error generating response: {str(e)}", error_type="server_error"
+                ),
+            )
+
+    # Handle streaming response
+    async def generate_stream():
+        """Generate streaming response."""
+        try:
+            for token in stream_chat_response(
+                messages_dict,
+                model=req.model,
+                temperature=req.temperature,
+                max_tokens=req.max_tokens,
+            ):
+                chunk = {
+                    "id": request_id,
+                    "object": "response.chunk",
+                    "created": created_at,
+                    "model": req.model,
+                    "choices": [
+                        {"index": 0, "delta": {"content": token}, "finish_reason": None}
+                    ],
+                }
+                yield f"data: {json.dumps(chunk)}\n\n"
+
+            # Send final chunk with finish_reason
+            final_chunk = {
+                "id": request_id,
+                "object": "response.chunk",
+                "created": created_at,
+                "model": req.model,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+            }
+            yield f"data: {json.dumps(final_chunk)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        except Exception as e:
+            error_chunk = {"error": {"message": str(e), "type": "server_error"}}
+            yield f"data: {json.dumps(error_chunk)}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.exception_handler(Exception)
