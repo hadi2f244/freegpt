@@ -223,16 +223,17 @@ async def chat_completions(
             ),
         )
 
-    # Validate required fields - be more lenient
-    messages = body.get("messages")
+    # Validate required fields - accept both "messages" and "input" (for n8n compatibility)
+    messages = body.get("messages") or body.get("input")
     if not messages:
         print(
-            f"DEBUG /v1/chat/completions: Missing messages. Body keys: {list(body.keys())}"
+            f"DEBUG /v1/chat/completions: Missing messages/input. Body keys: {list(body.keys())}"
         )  # Debug logging
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=create_error_response(
-                "Missing required field: messages", error_type="invalid_request_error"
+                "Missing required field: messages or input",
+                error_type="invalid_request_error",
             ),
         )
 
@@ -585,16 +586,17 @@ async def responses(request: Request, authorization: Optional[str] = Header(None
             ),
         )
 
-    # Validate required fields - be more lenient
-    messages = body.get("messages")
+    # Validate required fields - accept both "messages" and "input" (for n8n compatibility)
+    messages = body.get("messages") or body.get("input")
     if not messages:
         print(
-            f"DEBUG: Missing messages. Body keys: {list(body.keys())}"
+            f"DEBUG: Missing messages/input. Body keys: {list(body.keys())}"
         )  # Debug logging
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=create_error_response(
-                "Missing required field: messages", error_type="invalid_request_error"
+                "Missing required field: messages or input",
+                error_type="invalid_request_error",
             ),
         )
 
