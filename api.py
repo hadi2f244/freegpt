@@ -634,13 +634,21 @@ async def responses(request: Request, authorization: Optional[str] = Header(None
                 max_tokens=max_tokens,
             )
 
+            # Return n8n-compatible format with both standard and n8n fields
             return {
                 "id": request_id,
                 "object": "response",
                 "created": created_at,
                 "model": model,
                 "usage": usage,
-                "choices": [
+                "output": [  # n8n expects this field
+                    {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": text,
+                    }
+                ],
+                "choices": [  # Keep standard format for compatibility
                     {
                         "index": 0,
                         "message": {"role": "assistant", "content": text},
