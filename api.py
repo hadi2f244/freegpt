@@ -134,6 +134,9 @@ class ModerationRequest(BaseModel):
 class ResponsesRequest(BaseModel):
     """Request model for /v1/responses endpoint (Agent compatibility)."""
 
+    class Config:
+        extra = "allow"  # Allow additional fields from agents
+
     messages: List[Message] = Field(
         ..., description="List of messages in the conversation"
     )
@@ -490,7 +493,7 @@ async def moderations(
 
 
 @app.post("/v1/responses")
-async def responses(req: ResponsesRequest, authorization: Optional[str] = Header(None)):
+async def responses(request: Request, authorization: Optional[str] = Header(None)):
     """
     Create a response (Agent-compatible endpoint).
 
@@ -506,28 +509,62 @@ async def responses(req: ResponsesRequest, authorization: Optional[str] = Header
             ),
         )
 
+    # Parse request body
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=create_error_response(
+                f"Invalid JSON: {str(e)}", error_type="invalid_request_error"
+            ),
+        )
+
+    # Validate required fields
+    if "messages" not in body:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=create_error_response(
+                "Missing required field: messages", error_type="invalid_request_error"
+            ),
+        )
+
+    # Extract parameters with defaults
+    messages = body.get("messages", [])
+    model = body.get("model", "gpt-4.1")
+    temperature = body.get("temperature", 1.0)
+    max_tokens = body.get("max_tokens", 512)
+    stream = body.get("stream", False)
+
     # Generate unique request ID
     request_id = "resp-" + uuid.uuid4().hex[:24]
     created_at = int(time.time())
 
-    # Convert messages to dict format
-    messages_dict = [{"role": m.role, "content": m.content} for m in req.messages]
+    # Convert messages to dict format (handle both dict and object formats)
+    messages_dict = []
+    for m in messages:
+        if isinstance(m, dict):
+            messages_dict.append(
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+            )
+        else:
+            messages_dict.append({"role": m.role, "content": m.content})
 
     # Handle non-streaming response
-    if not req.stream:
+    if not stream:
         try:
             text, usage = generate_chat_response(
                 messages_dict,
-                model=req.model,
-                temperature=req.temperature,
-                max_tokens=req.max_tokens,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
             )
 
             return {
                 "id": request_id,
                 "object": "response",
                 "created": created_at,
-                "model": req.model,
+                "model": model,
                 "usage": usage,
                 "choices": [
                     {
@@ -551,15 +588,15 @@ async def responses(req: ResponsesRequest, authorization: Optional[str] = Header
         try:
             for token in stream_chat_response(
                 messages_dict,
-                model=req.model,
-                temperature=req.temperature,
-                max_tokens=req.max_tokens,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
             ):
                 chunk = {
                     "id": request_id,
                     "object": "response.chunk",
                     "created": created_at,
-                    "model": req.model,
+                    "model": model,
                     "choices": [
                         {"index": 0, "delta": {"content": token}, "finish_reason": None}
                     ],
@@ -571,7 +608,7 @@ async def responses(req: ResponsesRequest, authorization: Optional[str] = Header
                 "id": request_id,
                 "object": "response.chunk",
                 "created": created_at,
-                "model": req.model,
+                "model": model,
                 "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
             }
             yield f"data: {json.dumps(final_chunk)}\n\n"
