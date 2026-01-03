@@ -75,6 +75,9 @@ def create_error_response(
 
 
 class Message(BaseModel):
+    class Config:
+        extra = "allow"  # Allow extra fields from various clients
+
     role: str = Field(
         ..., description="Role of the message sender (system, user, assistant)"
     )
@@ -83,6 +86,9 @@ class Message(BaseModel):
 
 
 class ChatCompletionRequest(BaseModel):
+    class Config:
+        extra = "allow"  # Allow extra fields from various clients like n8n
+
     model: str = Field(..., description="Model to use for completion")
     messages: List[Message] = Field(
         ..., description="List of messages in the conversation"
@@ -105,6 +111,9 @@ class ChatCompletionRequest(BaseModel):
 
 
 class CompletionRequest(BaseModel):
+    class Config:
+        extra = "allow"  # Allow extra fields from various clients
+
     model: str = Field(..., description="Model to use for completion")
     prompt: Union[str, List[str]] = Field(
         ..., description="Prompt(s) to generate completions for"
@@ -125,6 +134,9 @@ class CompletionRequest(BaseModel):
 
 
 class ModerationRequest(BaseModel):
+    class Config:
+        extra = "allow"  # Allow extra fields from various clients
+
     input: Union[str, List[str]] = Field(..., description="Text to moderate")
     model: Optional[str] = Field(
         "text-moderation-latest", description="Moderation model"
@@ -178,7 +190,7 @@ async def health():
 
 @app.post("/v1/chat/completions")
 async def chat_completions(
-    req: ChatCompletionRequest, authorization: Optional[str] = Header(None)
+    request: Request, authorization: Optional[str] = Header(None)
 ):
     """
     Create a chat completion (OpenAI-compatible).
@@ -194,28 +206,79 @@ async def chat_completions(
             ),
         )
 
+    # Parse request body flexibly
+    try:
+        body = await request.json()
+        print(
+            f"DEBUG /v1/chat/completions: Received body: {json.dumps(body, indent=2)}"
+        )  # Debug logging
+    except Exception as e:
+        print(
+            f"DEBUG /v1/chat/completions: JSON parse error: {str(e)}"
+        )  # Debug logging
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=create_error_response(
+                f"Invalid JSON: {str(e)}", error_type="invalid_request_error"
+            ),
+        )
+
+    # Validate required fields - be more lenient
+    messages = body.get("messages")
+    if not messages:
+        print(
+            f"DEBUG /v1/chat/completions: Missing messages. Body keys: {list(body.keys())}"
+        )  # Debug logging
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=create_error_response(
+                "Missing required field: messages", error_type="invalid_request_error"
+            ),
+        )
+
+    # Extract parameters with defaults
+    model = body.get("model", "gpt-4.1")
+    temperature = body.get("temperature", 1.0)
+    max_tokens = body.get("max_tokens", 512)
+    stream = body.get("stream", False)
+
+    print(
+        f"DEBUG /v1/chat/completions: Parsed - model: {model}, messages count: {len(messages)}, stream: {stream}"
+    )  # Debug logging
+    model = body.get("model", "gpt-4.1")
+    temperature = body.get("temperature", 1.0)
+    max_tokens = body.get("max_tokens", 512)
+    stream = body.get("stream", False)
+
     # Generate unique request ID
     request_id = "chatcmpl-" + uuid.uuid4().hex[:24]
     created_at = int(time.time())
 
-    # Convert messages to dict format
-    messages_dict = [{"role": m.role, "content": m.content} for m in req.messages]
+    # Convert messages to dict format (handle both dict and object formats)
+    messages_dict = []
+    for m in messages:
+        if isinstance(m, dict):
+            messages_dict.append(
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+            )
+        else:
+            messages_dict.append({"role": m.role, "content": m.content})
 
     # Handle non-streaming response
-    if not req.stream:
+    if not stream:
         try:
             text, usage = generate_chat_response(
                 messages_dict,
-                model=req.model,
-                temperature=req.temperature,
-                max_tokens=req.max_tokens,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
             )
 
             return {
                 "id": request_id,
                 "object": "chat.completion",
                 "created": created_at,
-                "model": req.model,
+                "model": model,
                 "usage": usage,
                 "choices": [
                     {
@@ -239,15 +302,15 @@ async def chat_completions(
         try:
             for token in stream_chat_response(
                 messages_dict,
-                model=req.model,
-                temperature=req.temperature,
-                max_tokens=req.max_tokens,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
             ):
                 chunk = {
                     "id": request_id,
                     "object": "chat.completion.chunk",
                     "created": created_at,
-                    "model": req.model,
+                    "model": model,
                     "choices": [
                         {"index": 0, "delta": {"content": token}, "finish_reason": None}
                     ],
@@ -259,7 +322,7 @@ async def chat_completions(
                 "id": request_id,
                 "object": "chat.completion.chunk",
                 "created": created_at,
-                "model": req.model,
+                "model": model,
                 "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
             }
             yield f"data: {json.dumps(final_chunk)}\n\n"
@@ -512,7 +575,9 @@ async def responses(request: Request, authorization: Optional[str] = Header(None
     # Parse request body
     try:
         body = await request.json()
+        print(f"DEBUG: Received body: {json.dumps(body, indent=2)}")  # Debug logging
     except Exception as e:
+        print(f"DEBUG: JSON parse error: {str(e)}")  # Debug logging
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=create_error_response(
@@ -520,8 +585,12 @@ async def responses(request: Request, authorization: Optional[str] = Header(None
             ),
         )
 
-    # Validate required fields
-    if "messages" not in body:
+    # Validate required fields - be more lenient
+    messages = body.get("messages")
+    if not messages:
+        print(
+            f"DEBUG: Missing messages. Body keys: {list(body.keys())}"
+        )  # Debug logging
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=create_error_response(
@@ -530,11 +599,14 @@ async def responses(request: Request, authorization: Optional[str] = Header(None
         )
 
     # Extract parameters with defaults
-    messages = body.get("messages", [])
     model = body.get("model", "gpt-4.1")
     temperature = body.get("temperature", 1.0)
     max_tokens = body.get("max_tokens", 512)
     stream = body.get("stream", False)
+
+    print(
+        f"DEBUG: Parsed - model: {model}, messages count: {len(messages)}, stream: {stream}"
+    )  # Debug logging
 
     # Generate unique request ID
     request_id = "resp-" + uuid.uuid4().hex[:24]
