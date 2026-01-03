@@ -60,7 +60,7 @@ load_env() {
 prepare_files() {
     mkdir -p data
     [ ! -f "data/.copilot_token" ] && touch data/.copilot_token
-    [ ! -f "api_tokens.json" ] && echo "{}" > api_tokens.json
+    [ ! -f "data/api_tokens.json" ] && echo "{}" > data/api_tokens.json
     if [ ! -f ".env" ] && [ -f ".env.example" ]; then
         cp .env.example .env
         echo -e "${GREEN}📝 Created .env from .env.example${NC}"
@@ -176,7 +176,7 @@ cmd_clean() {
         echo -e "   ${YELLOW}⚠️  This will delete your authentication tokens!${NC}"
         read -p "   Are you sure? (y/N): " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            rm -rf data/.copilot_token api_tokens.json
+            rm -rf data/.copilot_token data/api_tokens.json
             echo "   Data files removed"
         fi
     fi
@@ -219,7 +219,7 @@ cmd_verify() {
     fi
 
     echo "4. Checking API tokens..."
-    if [ -f "api_tokens.json" ] && [ -s "api_tokens.json" ] && [ "$(cat api_tokens.json)" != "{}" ]; then
+    if [ -f "api_tokens.json" ] && [ -s "data/api_tokens.json" ] && [ "$(cat data/api_tokens.json)" != "{}" ]; then
         echo -e "   ${GREEN}✅ API tokens configured${NC}"
     else
         echo -e "   ${YELLOW}⚠️  No API tokens configured${NC}"

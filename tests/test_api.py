@@ -21,18 +21,18 @@ from api import app, check_auth
 
 @pytest.fixture
 def auth_token():
-    """Get auth token from environment or api_tokens.json."""
+    """Get auth token from environment or data/api_tokens.json."""
     # First try environment variable
     token = os.getenv("FREEGPT_API_KEY") or os.getenv("OPENAI_API_KEY")
     if token:
         return token
 
-    # Try to load from api_tokens.json
+    # Try to load from data/api_tokens.json
     try:
         import json
 
         parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        token_file = os.path.join(parent_dir, "api_tokens.json")
+        token_file = os.path.join(parent_dir, "data/api_tokens.json")
         with open(token_file, "r") as f:
             tokens = json.load(f)
             if tokens:

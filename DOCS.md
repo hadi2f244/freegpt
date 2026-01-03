@@ -90,7 +90,7 @@ The API supports three authentication modes:
 
 1. **No authentication** (default if no keys configured)
    - No API key in environment
-   - No tokens in `api_tokens.json`
+   - No tokens in `data/api_tokens.json`
    - All requests allowed
 
 2. **Environment variable only**
@@ -104,7 +104,7 @@ The API supports three authentication modes:
 ## Security Best Practices
 
 1. **Never commit tokens to git**
-   - `api_tokens.json` is in `.gitignore`
+   - `data/api_tokens.json` is in `.gitignore`
    - `.env` is in `.gitignore`
 
 2. **Rotate tokens regularly**
@@ -149,7 +149,7 @@ The API supports three authentication modes:
 unset FREEGPT_API_KEY
 unset OPENAI_API_KEY
 # Delete or rename api_tokens.json
-mv api_tokens.json api_tokens.json.backup
+mv data/api_tokens.json data/api_tokens.json.backup
 # Restart server
 ```
 

@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 from typing import List, Optional, Dict
 
-TOKEN_FILE = os.path.join(os.path.dirname(__file__), "api_tokens.json")
+TOKEN_FILE = os.path.join(os.path.dirname(__file__), "data/api_tokens.json")
 
 
 def _load_tokens() -> Dict[str, dict]:

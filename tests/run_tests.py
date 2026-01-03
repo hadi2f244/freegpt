@@ -50,7 +50,7 @@ def get_test_token():
 
     # Go to parent directory where token_manager.py is
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    token_file = os.path.join(parent_dir, "api_tokens.json")
+    token_file = os.path.join(parent_dir, "data/api_tokens.json")
 
     if os.path.exists(token_file):
         with open(token_file, "r") as f:

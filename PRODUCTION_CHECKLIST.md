@@ -85,8 +85,8 @@ docker run -d -p 8000:8000 --env-file .env freegpt-api
 ### 1. File Permissions
 ```bash
 chmod 600 .env
-chmod 600 api_tokens.json
-chmod 600 .copilot_token
+chmod 600 data/api_tokens.json
+chmod 600 data/.copilot_token
 ```
 
 ### 2. Firewall Rules

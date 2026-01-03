@@ -37,7 +37,6 @@ services:
       # Persistent data - GitHub Copilot token and API tokens
       # Note: .copilot_token must exist and contain valid token before starting
       - ./data:/app/data:rw
-      - ./api_tokens.json:/app/api_tokens.json:rw
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/health')"]
       interval: 30s
@@ -94,7 +93,6 @@ services:
       # Mount test files
       - ./tests:/app/tests:ro
       - ./data:/app/data:ro
-      - ./api_tokens.json:/app/api_tokens.json:ro
     depends_on:
       freegpt-api:
         condition: service_healthy
