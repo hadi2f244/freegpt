@@ -645,7 +645,9 @@ async def responses(request: Request, authorization: Optional[str] = Header(None
                     {
                         "type": "message",
                         "role": "assistant",
-                        "content": text,
+                        "content": [
+                            {"type": "text", "text": text}
+                        ],  # n8n expects content as array
                     }
                 ],
                 "choices": [  # Keep standard format for compatibility
